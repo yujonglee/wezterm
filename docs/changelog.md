@@ -183,6 +183,7 @@ As features stabilize some brief notes about them will accumulate here.
   #6028 #6029
 * Glyph '┽', was rendering as '┥' when `custom_block_glyphs` was enabled.
   Thanks to @bew! #6661 #6655
+* Windows: stack overflow when using `tmux -CC`. Thanks to @joexue! #6704 #6671
 
 #### Updated
 * Bundled conpty.dll and OpenConsole.exe to build 1.22.250204002.nupkg
