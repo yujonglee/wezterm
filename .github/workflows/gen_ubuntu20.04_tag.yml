@@ -105,7 +105,6 @@ jobs:
             wezterm-*.xz
             *src.tar.gz
             *.AppImage
-            *.zsync
 
   upload:
     runs-on: ubuntu-latest
@@ -142,7 +141,7 @@ jobs:
           name: "ubuntu20.04"
       - name: "Checksum"
         shell: bash
-        run: "for f in wezterm-*.deb wezterm-*.xz *src.tar.gz *.AppImage *.zsync ; do sha256sum $f > $f.sha256 ; done"
+        run: "for f in wezterm-*.deb wezterm-*.xz *src.tar.gz *.AppImage ; do sha256sum $f > $f.sha256 ; done"
       - name: "Create pre-release"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -152,7 +151,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
-        run: "bash ci/retry.sh gh release upload --clobber $(ci/tag-name.sh) wezterm-*.deb wezterm-*.xz *src.tar.gz *.AppImage *.zsync *.sha256"
+        run: "bash ci/retry.sh gh release upload --clobber $(ci/tag-name.sh) wezterm-*.deb wezterm-*.xz *src.tar.gz *.AppImage *.sha256"
       - name: "Checkout flathub/org.wezfurlong.wezterm"
         uses: actions/checkout@v4
         with:

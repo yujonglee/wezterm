@@ -128,7 +128,6 @@ jobs:
             wezterm-*.xz
             *src.tar.gz
             *.AppImage
-            *.zsync
           retention-days: 5
 
   upload:
@@ -152,9 +151,9 @@ jobs:
           name: "ubuntu20.04"
       - name: "Checksum"
         shell: bash
-        run: "for f in wezterm-*.deb wezterm-*.xz *src.tar.gz *.AppImage *.zsync ; do sha256sum $f > $f.sha256 ; done"
+        run: "for f in wezterm-*.deb wezterm-*.xz *src.tar.gz *.AppImage ; do sha256sum $f > $f.sha256 ; done"
       - name: "Upload to Nightly Release"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
-        run: "bash ci/retry.sh gh release upload --clobber nightly wezterm-*.deb wezterm-*.xz *src.tar.gz *.AppImage *.zsync *.sha256"
+        run: "bash ci/retry.sh gh release upload --clobber nightly wezterm-*.deb wezterm-*.xz *src.tar.gz *.AppImage *.sha256"

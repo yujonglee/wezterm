@@ -125,4 +125,3 @@ jobs:
             wezterm-*.xz
             *src.tar.gz
             *.AppImage
-            *.zsync

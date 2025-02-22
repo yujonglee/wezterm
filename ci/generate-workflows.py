@@ -574,7 +574,7 @@ rustup default {toolchain}
         if self.app_image:
             patterns.append("*src.tar.gz")
             patterns.append("*.AppImage")
-            patterns.append("*.zsync")
+            #patterns.append("*.zsync") broken upstream: <https://github.com/linuxdeploy/linuxdeploy/issues/309>
         return patterns
 
     def upload_artifact_nightly(self):
