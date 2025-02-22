@@ -92,6 +92,8 @@ As features stabilize some brief notes about them will accumulate here.
   `skip_action_on_paste` option. Thanks to @nhurlock! #6405
 * Docs for writing [Plugins](config/plugins.md). Thanks to @alecthegeek and
   @MLFlexer! #6188
+* [macos_fullscreen_extend_behind_notch](config/lua/config/macos_fullscreen_extend_behind_notch.md)
+  option. Thanks to @wryanzimmerman! #5759
 
 #### Fixed
 * Race condition when very quickly adjusting font scale, and other improvements
