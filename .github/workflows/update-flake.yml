@@ -8,6 +8,9 @@ jobs:
   lockfile:
     runs-on: ubuntu-latest
     if: github.repository == 'wezterm/wezterm'
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
