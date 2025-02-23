@@ -184,6 +184,8 @@ As features stabilize some brief notes about them will accumulate here.
 * Glyph '┽', was rendering as '┥' when `custom_block_glyphs` was enabled.
   Thanks to @bew! #6661 #6655
 * Windows: stack overflow when using `tmux -CC`. Thanks to @joexue! #6704 #6671
+* `get_text_from_semantic_zone` didn't include the last line of text. Thanks to
+  @mgpinf! #6248 #5806 #5346
 
 #### Updated
 * Bundled conpty.dll and OpenConsole.exe to build 1.22.250204002.nupkg
