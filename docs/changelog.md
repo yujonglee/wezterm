@@ -100,6 +100,9 @@ As features stabilize some brief notes about them will accumulate here.
 * `tmux -CC` support is now very usable. Thanks to @joexue! #6602 #336
 * [Confirmation](config/lua/keyassignment/Confirmation.md) key assignment
   that can be used to show a confirmation prompt. Thanks to @mgpinf! #6707
+* [launcher_alphabet](config/lua/config/launcher_alphabet.md) option for
+  [ShowLauncherArgs](config/lua/keyassignment/ShowLauncherArgs.md).
+  Thanks to @mgpinf! #6677
 
 #### Fixed
 * Race condition when very quickly adjusting font scale, and other improvements
