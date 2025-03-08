@@ -172,7 +172,11 @@ impl Pane for LocalPane {
     }
 
     fn get_keyboard_encoding(&self) -> KeyboardEncoding {
-        self.terminal.lock().get_keyboard_encoding()
+        if self.tmux_domain.lock().is_some() {
+            KeyboardEncoding::Xterm
+        } else {
+            self.terminal.lock().get_keyboard_encoding()
+        }
     }
 
     fn get_current_seqno(&self) -> SequenceNo {
