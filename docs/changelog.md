@@ -197,6 +197,7 @@ As features stabilize some brief notes about them will accumulate here.
   @mgpinf! #6248 #5806 #5346
 * Deadlock when a domain detaches due to SSH timeout. Thanks to @joexue! #6749
   #6750
+* Panic when rewrapping very very long lines. #6729
 
 #### Updated
 * Bundled conpty.dll and OpenConsole.exe to build 1.22.250204002.nupkg
