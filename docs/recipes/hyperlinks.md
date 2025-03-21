@@ -113,7 +113,7 @@ config.mouse_bindings = {
 
 This setup sends the text of the commands directly into the active pane which has some drawbacks:
 
-- Does not work inside of any terminal program, the pane must be in a shell prompt
+- Does not work inside of any interactive terminal program that is not a shell; the pane must be in a shell prompt
 - Requires an empty command prompt before clicking a hyperlink; otherwise, the command may not execute correctly
 - When a shell is not detected (see the `is_shell` function), WezTerm falls back to a long shell command, which may clutter the prompt slightly. This happens because there is no reliable way to determine a file's MIME type.
 
