@@ -31,7 +31,7 @@ local config = wezterm.config_builder()
 
 local function is_shell(foreground_process_name)
   local shell_names = { 'bash', 'zsh', 'fish', 'sh', 'ksh', 'dash' }
-  local process = string.gsub(foreground_process_name, '(.*[/\\])(.*)', '%2')
+  local process = string.match(foreground_process_name, "[^/\\]+$") or foreground_process_name
   for _, shell in ipairs(shell_names) do
     if process == shell then return true end
   end
