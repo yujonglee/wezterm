@@ -115,7 +115,7 @@ This setup sends the text of the commands directly into the active pane which ha
 
 - Does not work inside of any interactive terminal program that is not a shell; the pane must be in a shell prompt
 - Requires an empty command prompt before clicking a hyperlink; otherwise, the command may not execute correctly
-- When a shell is not detected (see the `is_shell` function), WezTerm falls back to a long shell command, which may clutter the prompt slightly. This happens because there is no reliable way to determine a file's MIME type.
+- When a shell is not detected (see the `is_shell` function), WezTerm falls back to a long shell command, which may clutter the prompt slightly. This happens because WezTerm cannot directly determine a file's MIME type when not connected to a local shell.
 
 If you're using [tmux](https://github.com/tmux/tmux), you'll need to enable the
 hyperlinks terminal feature and, depending in your configuration
