@@ -3,9 +3,10 @@ use crate::utilsprites::RenderMetrics;
 use ::window::bitmaps::atlas::Sprite;
 use ::window::color::SrgbaPixel;
 use config::DimensionContext;
+use std::cmp;
 use std::ops::Range;
 use termwiz::surface::CursorShape;
-use tiny_skia::{FillRule, Paint, Path, PathBuilder, PixmapMut, Stroke, Transform};
+use tiny_skia::{BlendMode, FillRule, Paint, Path, PathBuilder, PixmapMut, Stroke, Transform};
 use wezterm_font::units::{IntPixelLength, PixelLength};
 use window::{BitmapImage, Image, Point, Rect, Size};
 
@@ -53,6 +54,30 @@ bitflags::bitflags! {
         const RIGHT = 1<<2;
         const MIDDLE = 1<<3;
         const FULL = 1<<4;
+    }
+}
+
+bitflags::bitflags! {
+    /// Components to make up graph branch diagrams (eg. for git history)
+    pub struct Branch: u16{
+        const VERTICAL = 1<<1;
+        const HORIZONTAL = 1<<2;
+        /// 
+        const RIGHT_TO_DOWN = 1<<3;
+        /// 
+        const RIGHT_TO_UP = 1<<4;
+        /// 
+        const LEFT_TO_DOWN = 1<<5;
+        /// 
+        const LEFT_TO_UP = 1<<6;
+        /// 
+        const CIRCLE_FILLED = 1<<7;
+        /// 
+        const CIRCLE_OUTLINE = 1<<8;
+        const LEFT = 1<<9;
+        const RIGHT = 1<<10;
+        const UP = 1<<11;
+        const DOWN = 1<<12;
     }
 }
 
@@ -191,7 +216,10 @@ pub enum BlockKey {
     Octant(u8),
     /// A braille dot pattern
     Braille(u8),
+    /// A progress bar pattern
     Progress(ProgressChunk),
+    /// A graph branch pattern
+    Branches(Branch),
 
     Poly(&'static [Poly]),
 
@@ -543,6 +571,10 @@ pub enum PolyCommand {
         center: BlockPoint,
         radiuses: BlockPoint,
     },
+    Circle {
+        center: BlockPoint,
+        radius: BlockCoord,
+    },
     Close,
 }
 
@@ -580,6 +612,16 @@ impl PolyCommand {
                 } else {
                     log::error!("Can't push oval, values: {:?}", self);
                 }
+            }
+            Self::Circle {
+                center: (x, y),
+                radius: r,
+            } => {
+                let x = x.to_pixel(width, underline_height);
+                let y = y.to_pixel(height, underline_height);
+                let r = r.to_pixel(cmp::min(width, height), underline_height);
+
+                pb.push_circle(x, y, r);
             }
             Self::Close => pb.close(),
         };
@@ -4715,6 +4757,220 @@ impl BlockKey {
             0xee04 => Self::Progress(ProgressChunk::MIDDLE | ProgressChunk::FULL),
             // [] Progress chunk - right full
             0xee05 => Self::Progress(ProgressChunk::RIGHT | ProgressChunk::FULL),
+            // [] Branch drawing horizontal
+            0xF5D0 => Self::Branches(Branch::HORIZONTAL),
+            // [] Branch drawing vertical
+            0xF5D1 => Self::Branches(Branch::VERTICAL),
+            // [] Branch drawing fade out to right
+            0xF5D2 => Self::Poly(&[Poly {
+                path: &[
+                    PolyCommand::MoveTo(BlockCoord::Zero, BlockCoord::Frac(1, 2)),
+                    PolyCommand::LineTo(BlockCoord::Frac(5, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(6, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::LineTo(BlockCoord::Frac(10, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(12, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::LineTo(BlockCoord::Frac(15, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(18, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::LineTo(BlockCoord::Frac(20, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(24, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::LineTo(BlockCoord::Frac(25, 30), BlockCoord::Frac(1, 2)),
+                ],
+                intensity: BlockAlpha::Full,
+                style: PolyStyle::OutlineHeavy,
+            }]),
+            // [] Branch drawing fade out to left
+            0xF5D3 => Self::Poly(&[Poly {
+                path: &[
+                    PolyCommand::MoveTo(BlockCoord::One, BlockCoord::Frac(1, 2)),
+                    PolyCommand::LineTo(BlockCoord::Frac(30 - 5, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(30 - 6, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::LineTo(BlockCoord::Frac(30 - 10, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(30 - 12, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::LineTo(BlockCoord::Frac(30 - 15, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(30 - 18, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::LineTo(BlockCoord::Frac(30 - 20, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(30 - 24, 30), BlockCoord::Frac(1, 2)),
+                    PolyCommand::LineTo(BlockCoord::Frac(30 - 25, 30), BlockCoord::Frac(1, 2)),
+                ],
+                intensity: BlockAlpha::Full,
+                style: PolyStyle::OutlineHeavy,
+            }]),
+            // [] Branch drawing fade out to lower
+            0xF5D4 => Self::Poly(&[Poly {
+                path: &[
+                    PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Zero),
+                    PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(5, 30)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(6, 30)),
+                    PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(10, 30)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(12, 30)),
+                    PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(15, 30)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(18, 30)),
+                    PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(20, 30)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(24, 30)),
+                    PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(25, 30)),
+                ],
+                intensity: BlockAlpha::Full,
+                style: PolyStyle::OutlineHeavy,
+            }]),
+            // [] Branch drawing fade out to upper
+            0xF5D5 => Self::Poly(&[Poly {
+                path: &[
+                    PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::One),
+                    PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(30 - 5, 30)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(30 - 6, 30)),
+                    PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(30 - 10, 30)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(30 - 12, 30)),
+                    PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(30 - 15, 30)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(30 - 18, 30)),
+                    PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(30 - 20, 30)),
+                    PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(30 - 24, 30)),
+                    PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(30 - 25, 30)),
+                ],
+                intensity: BlockAlpha::Full,
+                style: PolyStyle::OutlineHeavy,
+            }]),
+            // [] Branch drawing arc down and right
+            0xF5D6 => Self::Branches(Branch::RIGHT_TO_DOWN),
+            // [] Branch drawing arc down and left
+            0xF5D7 => Self::Branches(Branch::LEFT_TO_DOWN),
+            // [] Branch drawing arc up and right
+            0xF5D8 => Self::Branches(Branch::RIGHT_TO_UP),
+            // [] Branch drawing arc up and left
+            0xF5D9 => Self::Branches(Branch::LEFT_TO_UP),
+            // [] Branch drawing merge from lower and right
+            0xF5DA => Self::Branches(Branch::VERTICAL | Branch::RIGHT_TO_UP),
+            // [] Branch drawing branch to upper and right
+            0xF5DB => Self::Branches(Branch::VERTICAL | Branch::RIGHT_TO_DOWN),
+            // [] Branch drawing upper to right and lower to right
+            0xF5DC => Self::Branches(Branch::RIGHT_TO_UP | Branch::RIGHT_TO_DOWN),
+            // [] Branch drawing merge from left and down
+            0xF5DD => Self::Branches(Branch::VERTICAL | Branch::LEFT_TO_UP),
+            // [] Branch drawing branch to left and up
+            0xF5DE => Self::Branches(Branch::VERTICAL | Branch::LEFT_TO_DOWN),
+            // [] Branch drawing upper to left and lower to left
+            0xF5DF => Self::Branches(Branch::LEFT_TO_UP | Branch::LEFT_TO_DOWN),
+            // [] Branch drawing from left to right and left to down
+            0xF5E0 => Self::Branches(Branch::HORIZONTAL | Branch::LEFT_TO_DOWN),
+            // [] Branch drawing from right to left and right to down
+            0xF5E1 => Self::Branches(Branch::HORIZONTAL | Branch::RIGHT_TO_DOWN),
+            // [] Branch drawing from down to left and down to right
+            0xF5E2 => Self::Branches(Branch::LEFT_TO_DOWN | Branch::RIGHT_TO_DOWN),
+            // [] Branch drawing from left to up and left to right
+            0xF5E3 => Self::Branches(Branch::HORIZONTAL | Branch::LEFT_TO_UP),
+            // [] Branch drawing from right to up and right to left
+            0xF5E4 => Self::Branches(Branch::HORIZONTAL | Branch::RIGHT_TO_UP),
+            // [] Branch drawing from up to left and up to right
+            0xF5E5 => Self::Branches(Branch::LEFT_TO_UP | Branch::RIGHT_TO_UP),
+            // [] Branch drawing from up to left, up to right, and up to down
+            0xF5E6 => Self::Branches(Branch::VERTICAL | Branch::LEFT_TO_UP | Branch::RIGHT_TO_UP),
+            // [] Branch drawing from down to left, down to right, and down to up
+            0xF5E7 => {
+                Self::Branches(Branch::VERTICAL | Branch::LEFT_TO_DOWN | Branch::RIGHT_TO_DOWN)
+            }
+            // [] Branch drawing from left to right, left to up, and left to down
+            0xF5E8 => {
+                Self::Branches(Branch::HORIZONTAL | Branch::LEFT_TO_UP | Branch::LEFT_TO_DOWN)
+            }
+            // [] Branch drawing from right to left, right to up, and right to down
+            0xF5E9 => {
+                Self::Branches(Branch::HORIZONTAL | Branch::RIGHT_TO_DOWN | Branch::RIGHT_TO_UP)
+            }
+            // [] Branch drawing from up to down, up to left, and down to right
+            0xF5EA => Self::Branches(Branch::VERTICAL | Branch::LEFT_TO_UP | Branch::RIGHT_TO_DOWN),
+            // [] Branch drawing from up to down, up to right, and down to left
+            0xF5EB => Self::Branches(Branch::VERTICAL | Branch::LEFT_TO_DOWN | Branch::RIGHT_TO_UP),
+            // [] Branch drawing from left to right, left to up, and right to down
+            0xF5EC => {
+                Self::Branches(Branch::HORIZONTAL | Branch::LEFT_TO_UP | Branch::RIGHT_TO_DOWN)
+            }
+            // [] Branch drawing from left to right, left to down, and right to up
+            0xF5ED => {
+                Self::Branches(Branch::HORIZONTAL | Branch::LEFT_TO_DOWN | Branch::RIGHT_TO_UP)
+            }
+            // [] Branch drawing filled circle
+            0xF5EE => Self::Branches(Branch::CIRCLE_FILLED),
+            // [] Branch drawing outline circle
+            0xF5EF => Self::Branches(Branch::CIRCLE_OUTLINE),
+            // [] Branch drawing filled circle connected to right
+            0xF5F0 => Self::Branches(Branch::CIRCLE_FILLED | Branch::RIGHT),
+            // [] Branch drawing outline circle connected to right
+            0xF5F1 => Self::Branches(Branch::CIRCLE_OUTLINE | Branch::RIGHT),
+            // [] Branch drawing filled circle connected to left
+            0xF5F2 => Self::Branches(Branch::CIRCLE_FILLED | Branch::LEFT),
+            // [] Branch drawing outline circle connected to left
+            0xF5F3 => Self::Branches(Branch::CIRCLE_OUTLINE | Branch::LEFT),
+            // [] Branch drawing filled circle connected to left and right
+            0xF5F4 => Self::Branches(Branch::CIRCLE_FILLED | Branch::LEFT | Branch::RIGHT),
+            // [] Branch drawing outline circle connected to left and right
+            0xF5F5 => Self::Branches(Branch::CIRCLE_OUTLINE | Branch::LEFT | Branch::RIGHT),
+            // [] Branch drawing filled circle connected to down
+            0xF5F6 => Self::Branches(Branch::CIRCLE_FILLED | Branch::DOWN),
+            // [] Branch drawing outline circle connected to down
+            0xF5F7 => Self::Branches(Branch::CIRCLE_OUTLINE | Branch::DOWN),
+            // [] Branch drawing filled circle connected to up
+            0xF5F8 => Self::Branches(Branch::CIRCLE_FILLED | Branch::UP),
+            // [] Branch drawing outline circle connected to up
+            0xF5F9 => Self::Branches(Branch::CIRCLE_OUTLINE | Branch::UP),
+            // [] Branch drawing filled circle connected to up and down
+            0xF5FA => Self::Branches(Branch::CIRCLE_FILLED | Branch::UP | Branch::DOWN),
+            // [] Branch drawing outline circle connected to up and down
+            0xF5FB => Self::Branches(Branch::CIRCLE_OUTLINE | Branch::UP | Branch::DOWN),
+            // [] Branch drawing filled circle connected to right and down
+            0xF5FC => Self::Branches(Branch::CIRCLE_FILLED | Branch::RIGHT | Branch::DOWN),
+            // [] Branch drawing outline circle connected to right and down
+            0xF5FD => Self::Branches(Branch::CIRCLE_OUTLINE | Branch::RIGHT | Branch::DOWN),
+            // [] Branch drawing filled circle connected to left and down
+            0xF5FE => Self::Branches(Branch::CIRCLE_FILLED | Branch::LEFT | Branch::DOWN),
+            // [] Branch drawing outline circle connected to left and down
+            0xF5FF => Self::Branches(Branch::CIRCLE_OUTLINE | Branch::LEFT | Branch::DOWN),
+            // [] Branch drawing filled circle connected to right and up
+            0xF600 => Self::Branches(Branch::CIRCLE_FILLED | Branch::RIGHT | Branch::UP),
+            // [] Branch drawing outline circle connected to right and up
+            0xF601 => Self::Branches(Branch::CIRCLE_OUTLINE | Branch::RIGHT | Branch::UP),
+            // [] Branch drawing filled circle connected to left and up
+            0xF602 => Self::Branches(Branch::CIRCLE_FILLED | Branch::LEFT | Branch::UP),
+            // [] Branch drawing outline circle connected to left and up
+            0xF603 => Self::Branches(Branch::CIRCLE_OUTLINE | Branch::LEFT | Branch::UP),
+            // [] Branch drawing filled circle connected to right, up, and down
+            0xF604 => {
+                Self::Branches(Branch::CIRCLE_FILLED | Branch::RIGHT | Branch::UP | Branch::DOWN)
+            }
+            // [] Branch drawing outline circle connected to right, up, and down
+            0xF605 => {
+                Self::Branches(Branch::CIRCLE_OUTLINE | Branch::RIGHT | Branch::UP | Branch::DOWN)
+            }
+            // [] Branch drawing filled circle connected to left, up, and down
+            0xF606 => {
+                Self::Branches(Branch::CIRCLE_FILLED | Branch::LEFT | Branch::UP | Branch::DOWN)
+            }
+            // [] Branch drawing outline circle connected to left, up, and down
+            0xF607 => {
+                Self::Branches(Branch::CIRCLE_OUTLINE | Branch::LEFT | Branch::UP | Branch::DOWN)
+            }
+            // [] Branch drawing filled circle connected to left, right, and down
+            0xF608 => {
+                Self::Branches(Branch::CIRCLE_FILLED | Branch::LEFT | Branch::RIGHT | Branch::DOWN)
+            }
+            // [] Branch drawing outline circle connected to left, right, and down
+            0xF609 => {
+                Self::Branches(Branch::CIRCLE_OUTLINE | Branch::LEFT | Branch::RIGHT | Branch::DOWN)
+            }
+            // [] Branch drawing filled circle connected to left, right, and up
+            0xF60A => {
+                Self::Branches(Branch::CIRCLE_FILLED | Branch::LEFT | Branch::RIGHT | Branch::UP)
+            }
+            // [] Branch drawing outline circle connected to left, right, and up
+            0xF60B => {
+                Self::Branches(Branch::CIRCLE_OUTLINE | Branch::LEFT | Branch::RIGHT | Branch::UP)
+            }
+            // [] Branch drawing filled circle connected to left, right, up, and down
+            0xF60C => Self::Branches(
+                Branch::CIRCLE_FILLED | Branch::LEFT | Branch::RIGHT | Branch::UP | Branch::DOWN,
+            ),
+            // [] Branch drawing outline circle connected to left, right, up, and down
+            0xF60D => Self::Branches(
+                Branch::CIRCLE_OUTLINE | Branch::LEFT | Branch::RIGHT | Branch::UP | Branch::DOWN,
+            ),
             _ => return None,
         })
     }
@@ -4747,6 +5003,7 @@ impl GlyphCache {
         polys: &[Poly],
         buffer: &mut Image,
         aa: PolyAA,
+        blend_mode: Option<BlendMode>,
     ) {
         let (width, height) = buffer.image_dimensions();
         let mut pixmap =
@@ -4760,6 +5017,9 @@ impl GlyphCache {
         } in polys
         {
             let mut paint = Paint::default();
+            if let Some(blend) = blend_mode {
+                paint.blend_mode = blend;
+            }
             let intensity = intensity.to_scale();
             paint.set_color(
                 tiny_skia::Color::from_rgba(intensity, intensity, intensity, intensity).unwrap(),
@@ -4826,6 +5086,7 @@ impl GlyphCache {
                     }],
                     &mut buffer,
                     PolyAA::AntiAlias,
+                    None,
                 );
             }
             Some(CursorShape::BlinkingBar | CursorShape::SteadyBar) => {
@@ -4841,6 +5102,7 @@ impl GlyphCache {
                     }],
                     &mut buffer,
                     PolyAA::AntiAlias,
+                    None,
                 );
             }
             Some(CursorShape::BlinkingUnderline | CursorShape::SteadyUnderline) => {
@@ -4856,6 +5118,7 @@ impl GlyphCache {
                     }],
                     &mut buffer,
                     PolyAA::AntiAlias,
+                    None,
                 );
             }
         }
@@ -4968,6 +5231,7 @@ impl GlyphCache {
                         } else {
                             PolyAA::MoarPixels
                         },
+                        None,
                     );
                 };
 
@@ -5050,6 +5314,7 @@ impl GlyphCache {
                         } else {
                             PolyAA::MoarPixels
                         },
+                        None,
                     );
                 };
 
@@ -5198,6 +5463,7 @@ impl GlyphCache {
                         } else {
                             PolyAA::MoarPixels
                         },
+                        None,
                     );
                 };
 
@@ -5313,6 +5579,176 @@ impl GlyphCache {
                     }
                 }
             }
+            BlockKey::Branches(pattern) => {
+                let mut draw = |cmd: &'static [PolyCommand],
+                                style: PolyStyle,
+                                blend_mode: Option<BlendMode>| {
+                    self.draw_polys(
+                        &metrics,
+                        &[Poly {
+                            path: cmd,
+                            intensity: BlockAlpha::Full,
+                            style: style,
+                        }],
+                        &mut buffer,
+                        if config::configuration().anti_alias_custom_block_glyphs {
+                            PolyAA::AntiAlias
+                        } else {
+                            PolyAA::MoarPixels
+                        },
+                        blend_mode,
+                    );
+                };
+
+                if pattern.contains(Branch::VERTICAL) {
+                    draw(
+                        &[
+                            PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Zero),
+                            PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::One),
+                        ],
+                        PolyStyle::OutlineHeavy,
+                        None,
+                    );
+                }
+                if pattern.contains(Branch::HORIZONTAL) {
+                    draw(
+                        &[
+                            PolyCommand::MoveTo(BlockCoord::Zero, BlockCoord::Frac(1, 2)),
+                            PolyCommand::LineTo(BlockCoord::One, BlockCoord::Frac(1, 2)),
+                        ],
+                        PolyStyle::OutlineHeavy,
+                        None,
+                    );
+                }
+                if pattern.contains(Branch::RIGHT_TO_DOWN) {
+                    draw(
+                        &[
+                            PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::One),
+                            PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(7, 8)),
+                            PolyCommand::QuadTo {
+                                control: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                to: (BlockCoord::Frac(7, 8), BlockCoord::Frac(1, 2)),
+                            },
+                            PolyCommand::LineTo(BlockCoord::One, BlockCoord::Frac(1, 2)),
+                        ],
+                        PolyStyle::OutlineHeavy,
+                        None,
+                    );
+                }
+                if pattern.contains(Branch::LEFT_TO_DOWN) {
+                    draw(
+                        &[
+                            PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::One),
+                            PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(7, 8)),
+                            PolyCommand::QuadTo {
+                                control: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                to: (BlockCoord::Frac(1, 8), BlockCoord::Frac(1, 2)),
+                            },
+                            PolyCommand::LineTo(BlockCoord::Zero, BlockCoord::Frac(1, 2)),
+                        ],
+                        PolyStyle::OutlineHeavy,
+                        None,
+                    );
+                }
+                if pattern.contains(Branch::RIGHT_TO_UP) {
+                    draw(
+                        &[
+                            PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Zero),
+                            PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 8)),
+                            PolyCommand::QuadTo {
+                                control: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                to: (BlockCoord::Frac(7, 8), BlockCoord::Frac(1, 2)),
+                            },
+                            PolyCommand::LineTo(BlockCoord::One, BlockCoord::Frac(1, 2)),
+                        ],
+                        PolyStyle::OutlineHeavy,
+                        None,
+                    );
+                }
+                if pattern.contains(Branch::LEFT_TO_UP) {
+                    draw(
+                        &[
+                            PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Zero),
+                            PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 8)),
+                            PolyCommand::QuadTo {
+                                control: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                to: (BlockCoord::Frac(1, 8), BlockCoord::Frac(1, 2)),
+                            },
+                            PolyCommand::LineTo(BlockCoord::Zero, BlockCoord::Frac(1, 2)),
+                        ],
+                        PolyStyle::OutlineHeavy,
+                        None,
+                    );
+                }
+                if pattern.contains(Branch::LEFT) {
+                    draw(
+                        &[
+                            PolyCommand::MoveTo(BlockCoord::Zero, BlockCoord::Frac(1, 2)),
+                            PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                        ],
+                        PolyStyle::OutlineHeavy,
+                        None,
+                    );
+                }
+                if pattern.contains(Branch::RIGHT) {
+                    draw(
+                        &[
+                            PolyCommand::MoveTo(BlockCoord::One, BlockCoord::Frac(1, 2)),
+                            PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                        ],
+                        PolyStyle::OutlineHeavy,
+                        None,
+                    );
+                }
+                if pattern.contains(Branch::UP) {
+                    draw(
+                        &[
+                            PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Zero),
+                            PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                        ],
+                        PolyStyle::OutlineHeavy,
+                        None,
+                    );
+                }
+                if pattern.contains(Branch::DOWN) {
+                    draw(
+                        &[
+                            PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::One),
+                            PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                        ],
+                        PolyStyle::OutlineHeavy,
+                        None,
+                    );
+                }
+                if pattern.contains(Branch::CIRCLE_FILLED) {
+                    draw(
+                        &[PolyCommand::Circle {
+                            center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                            radius: BlockCoord::Frac(2, 5),
+                        }],
+                        PolyStyle::Fill,
+                        None,
+                    );
+                }
+                if pattern.contains(Branch::CIRCLE_OUTLINE) {
+                    draw(
+                        &[PolyCommand::Circle {
+                            center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                            radius: BlockCoord::Frac(2, 5),
+                        }],
+                        PolyStyle::Fill,
+                        None,
+                    );
+                    draw(
+                        &[PolyCommand::Circle {
+                            center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                            radius: BlockCoord::Frac(3, 10),
+                        }],
+                        PolyStyle::Fill,
+                        Some(BlendMode::Clear),
+                    );
+                }
+            }
             BlockKey::Poly(polys) | BlockKey::PolyWithCustomMetrics { polys, .. } => {
                 self.draw_polys(
                     &metrics,
@@ -5323,6 +5759,7 @@ impl GlyphCache {
                     } else {
                         PolyAA::MoarPixels
                     },
+                    None,
                 );
             }
         }
