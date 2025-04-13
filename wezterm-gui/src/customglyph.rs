@@ -145,11 +145,17 @@ pub enum BlockCoord {
     /// stroke widths; if the widths were all the same then you'd
     /// just specify the points in the path and not worry about it.
     FracWithOffset(i8, i8, LineScale),
+    /// Like Zero but for a square centered in the glyph
+    SquareZero,
+    /// Like One but for a square centered in the glyph
+    SquareOne,
+    /// Like Frac but for a square centered in the glyph
+    SquareFrac(i8, i8),
 }
 
 impl BlockCoord {
     /// Compute the actual pixel value given the max dimension.
-    pub fn to_pixel(self, max: usize, underline_height: f32) -> f32 {
+    pub fn to_pixel(self, max: usize, underline_height: f32, max_square: usize) -> f32 {
         /// For interior points, adjust so that we get the middle of the row;
         /// in AA modes with 1px wide strokes this gives better results.
         fn hint(v: f32) -> f32 {
@@ -165,6 +171,11 @@ impl BlockCoord {
             Self::Frac(num, den) => hint(max as f32 * num as f32 / den as f32),
             Self::FracWithOffset(num, den, under) => {
                 hint((max as f32 * num as f32 / den as f32) + (underline_height * under.to_scale()))
+            }
+            Self::SquareZero => 0. + (max - max_square) as f32 / 2.0,
+            Self::SquareOne => max as f32 - (max - max_square) as f32 / 2.0,
+            Self::SquareFrac(num, den) => {
+                hint(max_square as f32 * num as f32 / den as f32 + (max - max_square) as f32 / 2.0)
             }
         }
     }
@@ -220,6 +231,7 @@ pub enum BlockKey {
     Progress(ProgressChunk),
     /// A graph branch pattern
     Branches(Branch),
+    Spinner(u8),
 
     Poly(&'static [Poly]),
 
@@ -582,30 +594,31 @@ impl PolyCommand {
     fn to_skia(&self, width: usize, height: usize, underline_height: f32, pb: &mut PathBuilder) {
         match self {
             Self::MoveTo(x, y) => pb.move_to(
-                x.to_pixel(width, underline_height),
-                y.to_pixel(height, underline_height),
+                x.to_pixel(width, underline_height, cmp::min(width, height)),
+                y.to_pixel(height, underline_height, cmp::min(width, height)),
             ),
             Self::LineTo(x, y) => pb.line_to(
-                x.to_pixel(width, underline_height),
-                y.to_pixel(height, underline_height),
+                x.to_pixel(width, underline_height, cmp::min(width, height)),
+                y.to_pixel(height, underline_height, cmp::min(width, height)),
             ),
             Self::QuadTo {
                 control: (x1, y1),
                 to: (x, y),
             } => pb.quad_to(
-                x1.to_pixel(width, underline_height),
-                y1.to_pixel(height, underline_height),
-                x.to_pixel(width, underline_height),
-                y.to_pixel(height, underline_height),
+                x1.to_pixel(width, underline_height, cmp::min(width, height)),
+                y1.to_pixel(height, underline_height, cmp::min(width, height)),
+                x.to_pixel(width, underline_height, cmp::min(width, height)),
+                y.to_pixel(height, underline_height, cmp::min(width, height)),
             ),
             Self::Oval {
                 center: (x, y),
                 radiuses: (w, h),
             } => {
-                let x = x.to_pixel(width, underline_height) - width as f32;
-                let y = y.to_pixel(height, underline_height) - height as f32;
-                let w = w.to_pixel(width, underline_height) * 2.0;
-                let h = h.to_pixel(height, underline_height) * 2.0;
+                let x = x.to_pixel(width, underline_height, cmp::min(width, height)) - width as f32;
+                let y =
+                    y.to_pixel(height, underline_height, cmp::min(width, height)) - height as f32;
+                let w = w.to_pixel(width, underline_height, cmp::min(width, height)) * 2.0;
+                let h = h.to_pixel(height, underline_height, cmp::min(width, height)) * 2.0;
 
                 if let Some(oval) = tiny_skia::Rect::from_xywh(x, y, w, h) {
                     pb.push_oval(oval);
@@ -617,9 +630,13 @@ impl PolyCommand {
                 center: (x, y),
                 radius: r,
             } => {
-                let x = x.to_pixel(width, underline_height);
-                let y = y.to_pixel(height, underline_height);
-                let r = r.to_pixel(cmp::min(width, height), underline_height);
+                let x = x.to_pixel(width, underline_height, cmp::min(width, height));
+                let y = y.to_pixel(height, underline_height, cmp::min(width, height));
+                let r = r.to_pixel(
+                    cmp::min(width, height),
+                    underline_height,
+                    cmp::min(width, height),
+                );
 
                 pb.push_circle(x, y, r);
             }
@@ -4757,6 +4774,7 @@ impl BlockKey {
             0xee04 => Self::Progress(ProgressChunk::MIDDLE | ProgressChunk::FULL),
             // [] Progress chunk - right full
             0xee05 => Self::Progress(ProgressChunk::RIGHT | ProgressChunk::FULL),
+            n @ 0xee06..=0xee0b => Self::Spinner((n & 0xff) as u8 - 6),
             // [] Branch drawing horizontal
             0xF5D0 => Self::Branches(Branch::HORIZONTAL),
             // [] Branch drawing vertical
@@ -5747,6 +5765,237 @@ impl GlyphCache {
                         PolyStyle::Fill,
                         Some(BlendMode::Clear),
                     );
+                }
+            }
+            BlockKey::Spinner(segment) => {
+                let mut draw = |cmd: &'static [PolyCommand],
+                                style: PolyStyle,
+                                blend_mode: Option<BlendMode>| {
+                    self.draw_polys(
+                        &metrics,
+                        &[Poly {
+                            path: cmd,
+                            intensity: BlockAlpha::Full,
+                            style: style,
+                        }],
+                        &mut buffer,
+                        if config::configuration().anti_alias_custom_block_glyphs {
+                            PolyAA::AntiAlias
+                        } else {
+                            PolyAA::MoarPixels
+                        },
+                        blend_mode,
+                    );
+                };
+
+                match segment {
+                    0 => {
+                        draw(
+                            &[PolyCommand::Circle {
+                                center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                radius: BlockCoord::Frac(1, 2),
+                            }],
+                            PolyStyle::Fill,
+                            None,
+                        );
+                        draw(
+                            &[PolyCommand::Circle {
+                                center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                radius: BlockCoord::FracWithOffset(1, 2, LineScale::Mul(-3)),
+                            }],
+                            PolyStyle::Fill,
+                            Some(BlendMode::Clear),
+                        );
+                        draw(
+                            &[
+                                PolyCommand::MoveTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                PolyCommand::LineTo(BlockCoord::SquareOne, BlockCoord::SquareZero),
+                                PolyCommand::LineTo(BlockCoord::SquareOne, BlockCoord::SquareOne),
+                                PolyCommand::LineTo(BlockCoord::SquareZero, BlockCoord::SquareOne),
+                                PolyCommand::LineTo(BlockCoord::SquareZero, BlockCoord::SquareZero),
+                                PolyCommand::Close,
+                            ],
+                            PolyStyle::Fill,
+                            Some(BlendMode::Clear),
+                        );
+                    }
+                    1 => {
+                        draw(
+                            &[PolyCommand::Circle {
+                                center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                radius: BlockCoord::Frac(1, 2),
+                            }],
+                            PolyStyle::Fill,
+                            None,
+                        );
+                        draw(
+                            &[PolyCommand::Circle {
+                                center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                radius: BlockCoord::FracWithOffset(1, 2, LineScale::Mul(-3)),
+                            }],
+                            PolyStyle::Fill,
+                            Some(BlendMode::Clear),
+                        );
+                        draw(
+                            &[
+                                PolyCommand::MoveTo(
+                                    BlockCoord::SquareFrac(1, 2),
+                                    BlockCoord::SquareFrac(1, 2),
+                                ),
+                                PolyCommand::LineTo(
+                                    BlockCoord::SquareFrac(1, 2),
+                                    BlockCoord::SquareZero,
+                                ),
+                                PolyCommand::LineTo(BlockCoord::SquareZero, BlockCoord::SquareZero),
+                                PolyCommand::LineTo(BlockCoord::SquareZero, BlockCoord::SquareOne),
+                                PolyCommand::LineTo(BlockCoord::SquareOne, BlockCoord::SquareOne),
+                                PolyCommand::Close,
+                            ],
+                            PolyStyle::Fill,
+                            Some(BlendMode::Clear),
+                        );
+                    }
+                    2 => {
+                        draw(
+                            &[PolyCommand::Circle {
+                                center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                radius: BlockCoord::Frac(1, 2),
+                            }],
+                            PolyStyle::Fill,
+                            None,
+                        );
+                        draw(
+                            &[PolyCommand::Circle {
+                                center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                radius: BlockCoord::FracWithOffset(1, 2, LineScale::Mul(-3)),
+                            }],
+                            PolyStyle::Fill,
+                            Some(BlendMode::Clear),
+                        );
+                        draw(
+                            &[
+                                PolyCommand::MoveTo(
+                                    BlockCoord::SquareFrac(1, 2),
+                                    BlockCoord::SquareFrac(1, 2),
+                                ),
+                                PolyCommand::LineTo(BlockCoord::SquareOne, BlockCoord::SquareZero),
+                                PolyCommand::LineTo(BlockCoord::SquareZero, BlockCoord::SquareZero),
+                                PolyCommand::LineTo(BlockCoord::SquareZero, BlockCoord::SquareOne),
+                                PolyCommand::LineTo(
+                                    BlockCoord::SquareFrac(1, 3),
+                                    BlockCoord::SquareOne,
+                                ),
+                            ],
+                            PolyStyle::Fill,
+                            Some(BlendMode::Clear),
+                        );
+                    }
+                    3 => {
+                        draw(
+                            &[PolyCommand::Circle {
+                                center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                radius: BlockCoord::Frac(1, 2),
+                            }],
+                            PolyStyle::Fill,
+                            None,
+                        );
+                        draw(
+                            &[PolyCommand::Circle {
+                                center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                radius: BlockCoord::FracWithOffset(1, 2, LineScale::Mul(-3)),
+                            }],
+                            PolyStyle::Fill,
+                            Some(BlendMode::Clear),
+                        );
+                        draw(
+                            &[
+                                PolyCommand::MoveTo(
+                                    BlockCoord::SquareZero,
+                                    BlockCoord::SquareFrac(1, 2),
+                                ),
+                                PolyCommand::LineTo(BlockCoord::SquareZero, BlockCoord::SquareZero),
+                                PolyCommand::LineTo(BlockCoord::SquareOne, BlockCoord::SquareZero),
+                                PolyCommand::LineTo(
+                                    BlockCoord::SquareOne,
+                                    BlockCoord::SquareFrac(1, 2),
+                                ),
+                            ],
+                            PolyStyle::Fill,
+                            Some(BlendMode::Clear),
+                        );
+                    }
+                    4 => {
+                        draw(
+                            &[PolyCommand::Circle {
+                                center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                radius: BlockCoord::Frac(1, 2),
+                            }],
+                            PolyStyle::Fill,
+                            None,
+                        );
+                        draw(
+                            &[PolyCommand::Circle {
+                                center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                radius: BlockCoord::FracWithOffset(1, 2, LineScale::Mul(-3)),
+                            }],
+                            PolyStyle::Fill,
+                            Some(BlendMode::Clear),
+                        );
+                        draw(
+                            &[
+                                PolyCommand::MoveTo(
+                                    BlockCoord::SquareFrac(1, 2),
+                                    BlockCoord::SquareFrac(1, 2),
+                                ),
+                                PolyCommand::LineTo(BlockCoord::SquareZero, BlockCoord::SquareZero),
+                                PolyCommand::LineTo(BlockCoord::SquareOne, BlockCoord::SquareZero),
+                                PolyCommand::LineTo(BlockCoord::SquareOne, BlockCoord::SquareOne),
+                                PolyCommand::LineTo(
+                                    BlockCoord::SquareFrac(2, 3),
+                                    BlockCoord::SquareOne,
+                                ),
+                            ],
+                            PolyStyle::Fill,
+                            Some(BlendMode::Clear),
+                        );
+                    }
+                    5 => {
+                        draw(
+                            &[PolyCommand::Circle {
+                                center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                radius: BlockCoord::Frac(1, 2),
+                            }],
+                            PolyStyle::Fill,
+                            None,
+                        );
+                        draw(
+                            &[PolyCommand::Circle {
+                                center: (BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
+                                radius: BlockCoord::FracWithOffset(1, 2, LineScale::Mul(-3)),
+                            }],
+                            PolyStyle::Fill,
+                            Some(BlendMode::Clear),
+                        );
+                        draw(
+                            &[
+                                PolyCommand::MoveTo(
+                                    BlockCoord::SquareFrac(1, 2),
+                                    BlockCoord::SquareFrac(1, 2),
+                                ),
+                                PolyCommand::LineTo(
+                                    BlockCoord::SquareFrac(1, 2),
+                                    BlockCoord::SquareZero,
+                                ),
+                                PolyCommand::LineTo(BlockCoord::SquareOne, BlockCoord::SquareZero),
+                                PolyCommand::LineTo(BlockCoord::SquareOne, BlockCoord::SquareOne),
+                                PolyCommand::LineTo(BlockCoord::SquareZero, BlockCoord::SquareOne),
+                                PolyCommand::Close,
+                            ],
+                            PolyStyle::Fill,
+                            Some(BlendMode::Clear),
+                        );
+                    }
+                    _ => {}
                 }
             }
             BlockKey::Poly(polys) | BlockKey::PolyWithCustomMetrics { polys, .. } => {
