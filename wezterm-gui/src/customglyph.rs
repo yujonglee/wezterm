@@ -47,6 +47,15 @@ bitflags::bitflags! {
     }
 }
 
+bitflags::bitflags! {
+    pub struct ProgressChunk: u8{
+        const LEFT = 1<<1;
+        const RIGHT = 1<<2;
+        const MIDDLE = 1<<3;
+        const FULL = 1<<4;
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum BlockAlpha {
     /// 100%
@@ -182,6 +191,7 @@ pub enum BlockKey {
     Octant(u8),
     /// A braille dot pattern
     Braille(u8),
+    Progress(ProgressChunk),
 
     Poly(&'static [Poly]),
 
@@ -4693,6 +4703,18 @@ impl BlockKey {
                 intensity: BlockAlpha::Full,
                 style: PolyStyle::Outline,
             }]),
+            // [] Progress chunk - left empty
+            0xee00 => Self::Progress(ProgressChunk::LEFT),
+            // [] Progress chunk - middle empty
+            0xee01 => Self::Progress(ProgressChunk::MIDDLE),
+            // [] Progress chunk - right empty
+            0xee02 => Self::Progress(ProgressChunk::RIGHT),
+            // [] Progress chunk - left full
+            0xee03 => Self::Progress(ProgressChunk::LEFT | ProgressChunk::FULL),
+            // [] Progress chunk - middle full
+            0xee04 => Self::Progress(ProgressChunk::MIDDLE | ProgressChunk::FULL),
+            // [] Progress chunk - right full
+            0xee05 => Self::Progress(ProgressChunk::RIGHT | ProgressChunk::FULL),
             _ => return None,
         })
     }
@@ -5159,6 +5181,136 @@ impl GlyphCache {
                         .expect("valid rect"),
                     );
                     pixmap.fill_path(&path, &paint, FillRule::Winding, identity, None);
+                }
+            }
+            BlockKey::Progress(chunks) => {
+                let mut draw = |cmd: &'static [PolyCommand], style: PolyStyle| {
+                    self.draw_polys(
+                        &metrics,
+                        &[Poly {
+                            path: cmd,
+                            intensity: BlockAlpha::Full,
+                            style: style,
+                        }],
+                        &mut buffer,
+                        if config::configuration().anti_alias_custom_block_glyphs {
+                            PolyAA::AntiAlias
+                        } else {
+                            PolyAA::MoarPixels
+                        },
+                    );
+                };
+
+                if chunks.contains(ProgressChunk::LEFT) {
+                    draw(
+                        &[
+                            PolyCommand::MoveTo(BlockCoord::One, BlockCoord::Frac(1, 6)),
+                            PolyCommand::LineTo(BlockCoord::Frac(1, 6), BlockCoord::Frac(1, 6)),
+                            PolyCommand::LineTo(BlockCoord::Frac(1, 6), BlockCoord::Frac(6 - 1, 6)),
+                            PolyCommand::LineTo(BlockCoord::One, BlockCoord::Frac(6 - 1, 6)),
+                        ],
+                        PolyStyle::OutlineHeavy,
+                    );
+
+                    if chunks.contains(ProgressChunk::FULL) {
+                        draw(
+                            &[
+                                PolyCommand::MoveTo(
+                                    BlockCoord::One,
+                                    BlockCoord::FracWithOffset(1, 6, LineScale::Mul(6)),
+                                ),
+                                PolyCommand::LineTo(
+                                    BlockCoord::FracWithOffset(1, 6, LineScale::Mul(6)),
+                                    BlockCoord::FracWithOffset(1, 6, LineScale::Mul(6)),
+                                ),
+                                PolyCommand::LineTo(
+                                    BlockCoord::FracWithOffset(1, 6, LineScale::Mul(6)),
+                                    BlockCoord::FracWithOffset(6 - 1, 6, LineScale::Mul(-6)),
+                                ),
+                                PolyCommand::LineTo(
+                                    BlockCoord::One,
+                                    BlockCoord::FracWithOffset(6 - 1, 6, LineScale::Mul(-6)),
+                                ),
+                                PolyCommand::Close,
+                            ],
+                            PolyStyle::Fill,
+                        );
+                    }
+                }
+                if chunks.contains(ProgressChunk::RIGHT) {
+                    draw(
+                        &[
+                            PolyCommand::MoveTo(BlockCoord::Zero, BlockCoord::Frac(1, 6)),
+                            PolyCommand::LineTo(BlockCoord::Frac(6 - 1, 6), BlockCoord::Frac(1, 6)),
+                            PolyCommand::LineTo(
+                                BlockCoord::Frac(6 - 1, 6),
+                                BlockCoord::Frac(6 - 1, 6),
+                            ),
+                            PolyCommand::LineTo(BlockCoord::Zero, BlockCoord::Frac(6 - 1, 6)),
+                        ],
+                        PolyStyle::OutlineHeavy,
+                    );
+
+                    if chunks.contains(ProgressChunk::FULL) {
+                        draw(
+                            &[
+                                PolyCommand::MoveTo(
+                                    BlockCoord::Zero,
+                                    BlockCoord::FracWithOffset(1, 6, LineScale::Mul(6)),
+                                ),
+                                PolyCommand::LineTo(
+                                    BlockCoord::FracWithOffset(6 - 1, 6, LineScale::Mul(-6)),
+                                    BlockCoord::FracWithOffset(1, 6, LineScale::Mul(6)),
+                                ),
+                                PolyCommand::LineTo(
+                                    BlockCoord::FracWithOffset(6 - 1, 6, LineScale::Mul(-6)),
+                                    BlockCoord::FracWithOffset(6 - 1, 6, LineScale::Mul(-6)),
+                                ),
+                                PolyCommand::LineTo(
+                                    BlockCoord::Zero,
+                                    BlockCoord::FracWithOffset(6 - 1, 6, LineScale::Mul(-6)),
+                                ),
+                                PolyCommand::Close,
+                            ],
+                            PolyStyle::Fill,
+                        );
+                    }
+                }
+                if chunks.contains(ProgressChunk::MIDDLE) {
+                    draw(
+                        &[
+                            PolyCommand::MoveTo(BlockCoord::Zero, BlockCoord::Frac(1, 6)),
+                            PolyCommand::LineTo(BlockCoord::One, BlockCoord::Frac(1, 6)),
+                            PolyCommand::MoveTo(BlockCoord::Zero, BlockCoord::Frac(6 - 1, 6)),
+                            PolyCommand::LineTo(BlockCoord::One, BlockCoord::Frac(6 - 1, 6)),
+                        ],
+                        PolyStyle::OutlineHeavy,
+                    );
+
+                    if chunks.contains(ProgressChunk::FULL) {
+                        draw(
+                            &[
+                                PolyCommand::MoveTo(
+                                    BlockCoord::Zero,
+                                    BlockCoord::FracWithOffset(1, 6, LineScale::Mul(6)),
+                                ),
+                                PolyCommand::LineTo(
+                                    BlockCoord::One,
+                                    BlockCoord::FracWithOffset(1, 6, LineScale::Mul(6)),
+                                ),
+                                PolyCommand::LineTo(
+                                    BlockCoord::One,
+                                    BlockCoord::FracWithOffset(6 - 1, 6, LineScale::Mul(-6)),
+                                ),
+                                PolyCommand::LineTo(
+                                    BlockCoord::Zero,
+                                    BlockCoord::FracWithOffset(6 - 1, 6, LineScale::Mul(-6)),
+                                ),
+                                PolyCommand::Close,
+                            ],
+                            PolyStyle::Fill,
+                        );
+                    }
                 }
             }
             BlockKey::Poly(polys) | BlockKey::PolyWithCustomMetrics { polys, .. } => {
