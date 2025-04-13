@@ -209,6 +209,8 @@ As features stabilize some brief notes about them will accumulate here.
 * Deadlock when a domain detaches due to SSH timeout. Thanks to @joexue! #6749
   #6750
 * Panic when rewrapping very very long lines. #6729
+* CUP position parameters were mandatory when they should have been optional.
+  Thanks to @wojciech-graj! #6860
 
 #### Updated
 * Bundled conpty.dll and OpenConsole.exe to build 1.22.250204002.nupkg
