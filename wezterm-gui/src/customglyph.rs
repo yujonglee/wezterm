@@ -3,7 +3,6 @@ use crate::utilsprites::RenderMetrics;
 use ::window::bitmaps::atlas::Sprite;
 use ::window::color::SrgbaPixel;
 use config::DimensionContext;
-use std::cmp;
 use std::ops::Range;
 use termwiz::surface::CursorShape;
 use tiny_skia::{BlendMode, FillRule, Paint, Path, PathBuilder, PixmapMut, Stroke, Transform};
@@ -594,31 +593,30 @@ impl PolyCommand {
     fn to_skia(&self, width: usize, height: usize, underline_height: f32, pb: &mut PathBuilder) {
         match self {
             Self::MoveTo(x, y) => pb.move_to(
-                x.to_pixel(width, underline_height, cmp::min(width, height)),
-                y.to_pixel(height, underline_height, cmp::min(width, height)),
+                x.to_pixel(width, underline_height, width.min(height)),
+                y.to_pixel(height, underline_height, width.min(height)),
             ),
             Self::LineTo(x, y) => pb.line_to(
-                x.to_pixel(width, underline_height, cmp::min(width, height)),
-                y.to_pixel(height, underline_height, cmp::min(width, height)),
+                x.to_pixel(width, underline_height, width.min(height)),
+                y.to_pixel(height, underline_height, width.min(height)),
             ),
             Self::QuadTo {
                 control: (x1, y1),
                 to: (x, y),
             } => pb.quad_to(
-                x1.to_pixel(width, underline_height, cmp::min(width, height)),
-                y1.to_pixel(height, underline_height, cmp::min(width, height)),
-                x.to_pixel(width, underline_height, cmp::min(width, height)),
-                y.to_pixel(height, underline_height, cmp::min(width, height)),
+                x1.to_pixel(width, underline_height, width.min(height)),
+                y1.to_pixel(height, underline_height, width.min(height)),
+                x.to_pixel(width, underline_height, width.min(height)),
+                y.to_pixel(height, underline_height, width.min(height)),
             ),
             Self::Oval {
                 center: (x, y),
                 radiuses: (w, h),
             } => {
-                let x = x.to_pixel(width, underline_height, cmp::min(width, height)) - width as f32;
-                let y =
-                    y.to_pixel(height, underline_height, cmp::min(width, height)) - height as f32;
-                let w = w.to_pixel(width, underline_height, cmp::min(width, height)) * 2.0;
-                let h = h.to_pixel(height, underline_height, cmp::min(width, height)) * 2.0;
+                let x = x.to_pixel(width, underline_height, width.min(height)) - width as f32;
+                let y = y.to_pixel(height, underline_height, width.min(height)) - height as f32;
+                let w = w.to_pixel(width, underline_height, width.min(height)) * 2.0;
+                let h = h.to_pixel(height, underline_height, width.min(height)) * 2.0;
 
                 if let Some(oval) = tiny_skia::Rect::from_xywh(x, y, w, h) {
                     pb.push_oval(oval);
@@ -630,13 +628,9 @@ impl PolyCommand {
                 center: (x, y),
                 radius: r,
             } => {
-                let x = x.to_pixel(width, underline_height, cmp::min(width, height));
-                let y = y.to_pixel(height, underline_height, cmp::min(width, height));
-                let r = r.to_pixel(
-                    cmp::min(width, height),
-                    underline_height,
-                    cmp::min(width, height),
-                );
+                let x = x.to_pixel(width, underline_height, width.min(height));
+                let y = y.to_pixel(height, underline_height, width.min(height));
+                let r = r.to_pixel(width.min(height), underline_height, width.min(height));
 
                 pb.push_circle(x, y, r);
             }
@@ -5021,7 +5015,7 @@ impl GlyphCache {
         polys: &[Poly],
         buffer: &mut Image,
         aa: PolyAA,
-        blend_mode: Option<BlendMode>,
+        blend_mode: BlendMode,
     ) {
         let (width, height) = buffer.image_dimensions();
         let mut pixmap =
@@ -5035,9 +5029,7 @@ impl GlyphCache {
         } in polys
         {
             let mut paint = Paint::default();
-            if let Some(blend) = blend_mode {
-                paint.blend_mode = blend;
-            }
+            paint.blend_mode = blend_mode;
             let intensity = intensity.to_scale();
             paint.set_color(
                 tiny_skia::Color::from_rgba(intensity, intensity, intensity, intensity).unwrap(),
@@ -5104,7 +5096,7 @@ impl GlyphCache {
                     }],
                     &mut buffer,
                     PolyAA::AntiAlias,
-                    None,
+                    BlendMode::default(),
                 );
             }
             Some(CursorShape::BlinkingBar | CursorShape::SteadyBar) => {
@@ -5120,7 +5112,7 @@ impl GlyphCache {
                     }],
                     &mut buffer,
                     PolyAA::AntiAlias,
-                    None,
+                    BlendMode::default(),
                 );
             }
             Some(CursorShape::BlinkingUnderline | CursorShape::SteadyUnderline) => {
@@ -5136,7 +5128,7 @@ impl GlyphCache {
                     }],
                     &mut buffer,
                     PolyAA::AntiAlias,
-                    None,
+                    BlendMode::default(),
                 );
             }
         }
@@ -5249,7 +5241,7 @@ impl GlyphCache {
                         } else {
                             PolyAA::MoarPixels
                         },
-                        None,
+                        BlendMode::default(),
                     );
                 };
 
@@ -5332,7 +5324,7 @@ impl GlyphCache {
                         } else {
                             PolyAA::MoarPixels
                         },
-                        None,
+                        BlendMode::default(),
                     );
                 };
 
@@ -5481,7 +5473,7 @@ impl GlyphCache {
                         } else {
                             PolyAA::MoarPixels
                         },
-                        None,
+                        BlendMode::default(),
                     );
                 };
 
@@ -5598,25 +5590,24 @@ impl GlyphCache {
                 }
             }
             BlockKey::Branches(pattern) => {
-                let mut draw = |cmd: &'static [PolyCommand],
-                                style: PolyStyle,
-                                blend_mode: Option<BlendMode>| {
-                    self.draw_polys(
-                        &metrics,
-                        &[Poly {
-                            path: cmd,
-                            intensity: BlockAlpha::Full,
-                            style: style,
-                        }],
-                        &mut buffer,
-                        if config::configuration().anti_alias_custom_block_glyphs {
-                            PolyAA::AntiAlias
-                        } else {
-                            PolyAA::MoarPixels
-                        },
-                        blend_mode,
-                    );
-                };
+                let mut draw =
+                    |cmd: &'static [PolyCommand], style: PolyStyle, blend_mode: BlendMode| {
+                        self.draw_polys(
+                            &metrics,
+                            &[Poly {
+                                path: cmd,
+                                intensity: BlockAlpha::Full,
+                                style: style,
+                            }],
+                            &mut buffer,
+                            if config::configuration().anti_alias_custom_block_glyphs {
+                                PolyAA::AntiAlias
+                            } else {
+                                PolyAA::MoarPixels
+                            },
+                            blend_mode,
+                        );
+                    };
 
                 if pattern.contains(Branch::VERTICAL) {
                     draw(
@@ -5625,7 +5616,7 @@ impl GlyphCache {
                             PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::One),
                         ],
                         PolyStyle::OutlineHeavy,
-                        None,
+                        BlendMode::default(),
                     );
                 }
                 if pattern.contains(Branch::HORIZONTAL) {
@@ -5635,7 +5626,7 @@ impl GlyphCache {
                             PolyCommand::LineTo(BlockCoord::One, BlockCoord::Frac(1, 2)),
                         ],
                         PolyStyle::OutlineHeavy,
-                        None,
+                        BlendMode::default(),
                     );
                 }
                 if pattern.contains(Branch::RIGHT_TO_DOWN) {
@@ -5650,7 +5641,7 @@ impl GlyphCache {
                             PolyCommand::LineTo(BlockCoord::One, BlockCoord::Frac(1, 2)),
                         ],
                         PolyStyle::OutlineHeavy,
-                        None,
+                        BlendMode::default(),
                     );
                 }
                 if pattern.contains(Branch::LEFT_TO_DOWN) {
@@ -5665,7 +5656,7 @@ impl GlyphCache {
                             PolyCommand::LineTo(BlockCoord::Zero, BlockCoord::Frac(1, 2)),
                         ],
                         PolyStyle::OutlineHeavy,
-                        None,
+                        BlendMode::default(),
                     );
                 }
                 if pattern.contains(Branch::RIGHT_TO_UP) {
@@ -5680,7 +5671,7 @@ impl GlyphCache {
                             PolyCommand::LineTo(BlockCoord::One, BlockCoord::Frac(1, 2)),
                         ],
                         PolyStyle::OutlineHeavy,
-                        None,
+                        BlendMode::default(),
                     );
                 }
                 if pattern.contains(Branch::LEFT_TO_UP) {
@@ -5695,7 +5686,7 @@ impl GlyphCache {
                             PolyCommand::LineTo(BlockCoord::Zero, BlockCoord::Frac(1, 2)),
                         ],
                         PolyStyle::OutlineHeavy,
-                        None,
+                        BlendMode::default(),
                     );
                 }
                 if pattern.contains(Branch::LEFT) {
@@ -5705,7 +5696,7 @@ impl GlyphCache {
                             PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
                         ],
                         PolyStyle::OutlineHeavy,
-                        None,
+                        BlendMode::default(),
                     );
                 }
                 if pattern.contains(Branch::RIGHT) {
@@ -5715,7 +5706,7 @@ impl GlyphCache {
                             PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
                         ],
                         PolyStyle::OutlineHeavy,
-                        None,
+                        BlendMode::default(),
                     );
                 }
                 if pattern.contains(Branch::UP) {
@@ -5725,7 +5716,7 @@ impl GlyphCache {
                             PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
                         ],
                         PolyStyle::OutlineHeavy,
-                        None,
+                        BlendMode::default(),
                     );
                 }
                 if pattern.contains(Branch::DOWN) {
@@ -5735,7 +5726,7 @@ impl GlyphCache {
                             PolyCommand::LineTo(BlockCoord::Frac(1, 2), BlockCoord::Frac(1, 2)),
                         ],
                         PolyStyle::OutlineHeavy,
-                        None,
+                        BlendMode::default(),
                     );
                 }
                 if pattern.contains(Branch::CIRCLE_FILLED) {
@@ -5745,7 +5736,7 @@ impl GlyphCache {
                             radius: BlockCoord::Frac(2, 5),
                         }],
                         PolyStyle::Fill,
-                        None,
+                        BlendMode::default(),
                     );
                 }
                 if pattern.contains(Branch::CIRCLE_OUTLINE) {
@@ -5755,7 +5746,7 @@ impl GlyphCache {
                             radius: BlockCoord::Frac(2, 5),
                         }],
                         PolyStyle::Fill,
-                        None,
+                        BlendMode::default(),
                     );
                     draw(
                         &[PolyCommand::Circle {
@@ -5763,30 +5754,29 @@ impl GlyphCache {
                             radius: BlockCoord::Frac(3, 10),
                         }],
                         PolyStyle::Fill,
-                        Some(BlendMode::Clear),
+                        BlendMode::Clear,
                     );
                 }
             }
             BlockKey::Spinner(segment) => {
-                let mut draw = |cmd: &'static [PolyCommand],
-                                style: PolyStyle,
-                                blend_mode: Option<BlendMode>| {
-                    self.draw_polys(
-                        &metrics,
-                        &[Poly {
-                            path: cmd,
-                            intensity: BlockAlpha::Full,
-                            style: style,
-                        }],
-                        &mut buffer,
-                        if config::configuration().anti_alias_custom_block_glyphs {
-                            PolyAA::AntiAlias
-                        } else {
-                            PolyAA::MoarPixels
-                        },
-                        blend_mode,
-                    );
-                };
+                let mut draw =
+                    |cmd: &'static [PolyCommand], style: PolyStyle, blend_mode: BlendMode| {
+                        self.draw_polys(
+                            &metrics,
+                            &[Poly {
+                                path: cmd,
+                                intensity: BlockAlpha::Full,
+                                style: style,
+                            }],
+                            &mut buffer,
+                            if config::configuration().anti_alias_custom_block_glyphs {
+                                PolyAA::AntiAlias
+                            } else {
+                                PolyAA::MoarPixels
+                            },
+                            blend_mode,
+                        );
+                    };
 
                 match segment {
                     0 => {
@@ -5796,7 +5786,7 @@ impl GlyphCache {
                                 radius: BlockCoord::Frac(1, 2),
                             }],
                             PolyStyle::Fill,
-                            None,
+                            BlendMode::default(),
                         );
                         draw(
                             &[PolyCommand::Circle {
@@ -5804,7 +5794,7 @@ impl GlyphCache {
                                 radius: BlockCoord::FracWithOffset(1, 2, LineScale::Mul(-3)),
                             }],
                             PolyStyle::Fill,
-                            Some(BlendMode::Clear),
+                            BlendMode::Clear,
                         );
                         draw(
                             &[
@@ -5816,7 +5806,7 @@ impl GlyphCache {
                                 PolyCommand::Close,
                             ],
                             PolyStyle::Fill,
-                            Some(BlendMode::Clear),
+                            BlendMode::Clear,
                         );
                     }
                     1 => {
@@ -5826,7 +5816,7 @@ impl GlyphCache {
                                 radius: BlockCoord::Frac(1, 2),
                             }],
                             PolyStyle::Fill,
-                            None,
+                            BlendMode::default(),
                         );
                         draw(
                             &[PolyCommand::Circle {
@@ -5834,7 +5824,7 @@ impl GlyphCache {
                                 radius: BlockCoord::FracWithOffset(1, 2, LineScale::Mul(-3)),
                             }],
                             PolyStyle::Fill,
-                            Some(BlendMode::Clear),
+                            BlendMode::Clear,
                         );
                         draw(
                             &[
@@ -5850,7 +5840,7 @@ impl GlyphCache {
                                 PolyCommand::Close,
                             ],
                             PolyStyle::Fill,
-                            Some(BlendMode::Clear),
+                            BlendMode::Clear,
                         );
                     }
                     2 => {
@@ -5860,7 +5850,7 @@ impl GlyphCache {
                                 radius: BlockCoord::Frac(1, 2),
                             }],
                             PolyStyle::Fill,
-                            None,
+                            BlendMode::default(),
                         );
                         draw(
                             &[PolyCommand::Circle {
@@ -5868,7 +5858,7 @@ impl GlyphCache {
                                 radius: BlockCoord::FracWithOffset(1, 2, LineScale::Mul(-3)),
                             }],
                             PolyStyle::Fill,
-                            Some(BlendMode::Clear),
+                            BlendMode::Clear,
                         );
                         draw(
                             &[
@@ -5886,7 +5876,7 @@ impl GlyphCache {
                                 ),
                             ],
                             PolyStyle::Fill,
-                            Some(BlendMode::Clear),
+                            BlendMode::Clear,
                         );
                     }
                     3 => {
@@ -5896,7 +5886,7 @@ impl GlyphCache {
                                 radius: BlockCoord::Frac(1, 2),
                             }],
                             PolyStyle::Fill,
-                            None,
+                            BlendMode::default(),
                         );
                         draw(
                             &[PolyCommand::Circle {
@@ -5904,7 +5894,7 @@ impl GlyphCache {
                                 radius: BlockCoord::FracWithOffset(1, 2, LineScale::Mul(-3)),
                             }],
                             PolyStyle::Fill,
-                            Some(BlendMode::Clear),
+                            BlendMode::Clear,
                         );
                         draw(
                             &[
@@ -5914,7 +5904,7 @@ impl GlyphCache {
                                 PolyCommand::LineTo(BlockCoord::One, BlockCoord::SquareFrac(1, 2)),
                             ],
                             PolyStyle::Fill,
-                            Some(BlendMode::Clear),
+                            BlendMode::Clear,
                         );
                     }
                     4 => {
@@ -5924,7 +5914,7 @@ impl GlyphCache {
                                 radius: BlockCoord::Frac(1, 2),
                             }],
                             PolyStyle::Fill,
-                            None,
+                            BlendMode::default(),
                         );
                         draw(
                             &[PolyCommand::Circle {
@@ -5932,7 +5922,7 @@ impl GlyphCache {
                                 radius: BlockCoord::FracWithOffset(1, 2, LineScale::Mul(-3)),
                             }],
                             PolyStyle::Fill,
-                            Some(BlendMode::Clear),
+                            BlendMode::Clear,
                         );
                         draw(
                             &[
@@ -5950,7 +5940,7 @@ impl GlyphCache {
                                 ),
                             ],
                             PolyStyle::Fill,
-                            Some(BlendMode::Clear),
+                            BlendMode::Clear,
                         );
                     }
                     5 => {
@@ -5960,7 +5950,7 @@ impl GlyphCache {
                                 radius: BlockCoord::Frac(1, 2),
                             }],
                             PolyStyle::Fill,
-                            None,
+                            BlendMode::default(),
                         );
                         draw(
                             &[PolyCommand::Circle {
@@ -5968,7 +5958,7 @@ impl GlyphCache {
                                 radius: BlockCoord::FracWithOffset(1, 2, LineScale::Mul(-3)),
                             }],
                             PolyStyle::Fill,
-                            Some(BlendMode::Clear),
+                            BlendMode::Clear,
                         );
                         draw(
                             &[
@@ -5984,7 +5974,7 @@ impl GlyphCache {
                                 PolyCommand::Close,
                             ],
                             PolyStyle::Fill,
-                            Some(BlendMode::Clear),
+                            BlendMode::Clear,
                         );
                     }
                     _ => {}
@@ -6000,7 +5990,7 @@ impl GlyphCache {
                     } else {
                         PolyAA::MoarPixels
                     },
-                    None,
+                    BlendMode::default(),
                 );
             }
         }
