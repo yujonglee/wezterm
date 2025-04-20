@@ -7,6 +7,7 @@ test:
 
 check:
 	cargo check
+	cargo check -p wezterm-escape-parser
 
 build:
 	cargo build $(BUILD_OPTS) -p wezterm
