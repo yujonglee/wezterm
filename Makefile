@@ -4,6 +4,7 @@ all: build
 
 test:
 	cargo nextest run
+	cargo nextest run -p wezterm-escape-parser # no_std by default
 
 check:
 	cargo check
