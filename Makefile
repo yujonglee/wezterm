@@ -9,6 +9,8 @@ test:
 check:
 	cargo check
 	cargo check -p wezterm-escape-parser
+	cargo check -p wezterm-cell
+	cargo check -p wezterm-surface
 
 build:
 	cargo build $(BUILD_OPTS) -p wezterm
