@@ -216,6 +216,7 @@ As features stabilize some brief notes about them will accumulate here.
   Thanks to @wojciech-graj! #6860
 * Long CSI sequences were not parsed correctly. Thanks to @jdugan6240! #5161
   #6194
+* IBus IME working unreliably. Thanks to @pjm0616! #5125
 
 #### Updated
 * Bundled conpty.dll and OpenConsole.exe to build 1.22.250204002.nupkg
