@@ -217,6 +217,9 @@ As features stabilize some brief notes about them will accumulate here.
 * Long CSI sequences were not parsed correctly. Thanks to @jdugan6240! #5161
   #6194
 * IBus IME working unreliably. Thanks to @pjm0616! #5125
+* Pixel aliasing issue when using
+  [window_content_alignment](config/lua/config/window_content_alignment.md) =
+  `Center`. Thanks to @juster-0! #6929 #6928 #6823
 
 #### Updated
 * Bundled conpty.dll and OpenConsole.exe to build 1.22.250204002.nupkg
