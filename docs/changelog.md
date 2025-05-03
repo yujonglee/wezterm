@@ -117,6 +117,8 @@ As features stabilize some brief notes about them will accumulate here.
 * Git branch and progress bar symbols have been added to
   [custom_block_glyphs](config/lua/config/custom_block_glyphs.md). Thanks to
   @BenBergman! #6328 #6873 #6875
+* [cell_widths](config/lua/config/cell_widths.md) option for explicit
+  control over cell widths. Thanks to @hamano! #6289 #6290
 
 #### Fixed
 * Race condition when very quickly adjusting font scale, and other improvements
