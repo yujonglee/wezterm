@@ -564,6 +564,10 @@ pub struct Config {
     #[dynamic(default)]
     pub macos_window_background_blur: i64,
 
+    /// Only works on KDE Wayland
+    #[dynamic(default)]
+    pub kde_window_background_blur: bool,
+
     /// Only works on Windows
     #[dynamic(default)]
     pub win32_system_backdrop: SystemBackdrop,
