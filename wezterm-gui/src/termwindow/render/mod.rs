@@ -527,12 +527,11 @@ impl crate::TermWindow {
                 params.config,
                 VisualBellTarget::CursorColor,
             ) {
-                let (fg_color, bg_color) =
-                    if self.config.force_reverse_video_cursor && params.cursor_is_default_color {
-                        (params.bg_color, params.fg_color)
-                    } else {
-                        (params.cursor_fg, params.cursor_bg)
-                    };
+                let (fg_color, bg_color) = if self.use_reverse_video_cursor(&params) {
+                    (params.bg_color, params.fg_color)
+                } else {
+                    (params.cursor_fg, params.cursor_bg)
+                };
 
                 // interpolate between the background color
                 // and the the target color
@@ -561,12 +560,11 @@ impl crate::TermWindow {
                 self.dead_key_status != DeadKeyStatus::None || self.leader_is_active();
 
             if dead_key_or_leader && params.is_active_pane {
-                let (fg_color, bg_color) =
-                    if self.config.force_reverse_video_cursor && params.cursor_is_default_color {
-                        (params.bg_color, params.fg_color)
-                    } else {
-                        (params.cursor_fg, params.cursor_bg)
-                    };
+                let (fg_color, bg_color) = if self.use_reverse_video_cursor(&params) {
+                    (params.bg_color, params.fg_color)
+                } else {
+                    (params.cursor_fg, params.cursor_bg)
+                };
 
                 let color = params
                     .config
@@ -622,7 +620,7 @@ impl crate::TermWindow {
                 CursorShape::BlinkingBlock | CursorShape::SteadyBlock,
                 CursorVisibility::Visible,
             ) => {
-                if self.config.force_reverse_video_cursor && params.cursor_is_default_color {
+                if self.use_reverse_video_cursor(&params) {
                     (params.bg_color, params.fg_color, params.fg_color)
                 } else {
                     (
@@ -641,7 +639,7 @@ impl crate::TermWindow {
                 | CursorShape::SteadyBar,
                 CursorVisibility::Visible,
             ) => {
-                if self.config.force_reverse_video_cursor && params.cursor_is_default_color {
+                if self.use_reverse_video_cursor(&params) {
                     (params.fg_color, params.bg_color, params.fg_color)
                 } else {
                     (params.fg_color, params.bg_color, params.cursor_bg)
@@ -707,6 +705,13 @@ impl crate::TermWindow {
                 None
             },
         }
+    }
+
+    fn use_reverse_video_cursor(&self, params: &ComputeCellFgBgParams) -> bool {
+        self.config.force_reverse_video_cursor
+            && params.cursor_is_default_color
+            && params.fg_color.contrast_ratio(&params.bg_color)
+                >= self.config.reverse_video_cursor_min_contrast
     }
 
     fn glyph_infos_to_glyphs(
