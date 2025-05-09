@@ -225,6 +225,8 @@ As features stabilize some brief notes about them will accumulate here.
 * Pixel aliasing issue when using
   [window_content_alignment](config/lua/config/window_content_alignment.md) =
   `Center`. Thanks to @juster-0! #6929 #6928 #6823
+* [reverse_video_cursor_min_contrast](config/lua/config/reverse_video_cursor_min_contrast.md)
+  option. Thanks to @jameshurst! #6584 ?2861
 
 #### Updated
 * Bundled conpty.dll and OpenConsole.exe to build 1.22.250204002.nupkg
