@@ -11,6 +11,7 @@ check:
 	cargo check -p wezterm-escape-parser
 	cargo check -p wezterm-cell
 	cargo check -p wezterm-surface
+	cargo check -p wezterm-ssh
 
 build:
 	cargo build $(BUILD_OPTS) -p wezterm
