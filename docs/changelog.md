@@ -122,6 +122,10 @@ As features stabilize some brief notes about them will accumulate here.
 * [kde_window_background_blur](config/lua/config/kde_window_background_blur.md) option
   to enable window blur when running under KDE Plasma on Wayland systems.
   Thanks to @psomani16k! #6905
+* [reverse_video_cursor_min_contrast](config/lua/config/reverse_video_cursor_min_contrast.md)
+  option. Thanks to @jameshurst! #6584 ?2861
+* [text_min_contrast_ratio](config/lua/config/text_min_contrast_ratio.md) to more generally
+  improve the contrast ratio for text in the terminal.
 
 #### Fixed
 * Race condition when very quickly adjusting font scale, and other improvements
@@ -225,8 +229,6 @@ As features stabilize some brief notes about them will accumulate here.
 * Pixel aliasing issue when using
   [window_content_alignment](config/lua/config/window_content_alignment.md) =
   `Center`. Thanks to @juster-0! #6929 #6928 #6823
-* [reverse_video_cursor_min_contrast](config/lua/config/reverse_video_cursor_min_contrast.md)
-  option. Thanks to @jameshurst! #6584 ?2861
 
 #### Updated
 * Bundled conpty.dll and OpenConsole.exe to build 1.22.250204002.nupkg

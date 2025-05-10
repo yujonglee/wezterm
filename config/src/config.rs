@@ -640,6 +640,9 @@ pub struct Config {
     pub animation_fps: u8,
 
     #[dynamic(default)]
+    pub text_min_contrast_ratio: Option<f32>,
+
+    #[dynamic(default)]
     pub force_reverse_video_cursor: bool,
     #[dynamic(default = "default_reverse_video_cursor_min_contrast")]
     pub reverse_video_cursor_min_contrast: f32,

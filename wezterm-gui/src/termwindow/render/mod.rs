@@ -520,6 +520,15 @@ impl crate::TermWindow {
         Ok(())
     }
 
+    fn ensure_min_contrast(&self, fg_color: LinearRgba, bg_color: LinearRgba) -> LinearRgba {
+        match self.config.text_min_contrast_ratio {
+            Some(ratio) => fg_color
+                .ensure_contrast_ratio(&bg_color, ratio)
+                .unwrap_or(fg_color),
+            None => fg_color,
+        }
+    }
+
     pub fn compute_cell_fg_bg(&self, params: ComputeCellFgBgParams) -> ComputeCellFgBgResult {
         if params.cursor.is_some() {
             if let Some(bg_color_mix) = self.get_intensity_if_bell_target_ringing(
@@ -532,6 +541,8 @@ impl crate::TermWindow {
                 } else {
                     (params.cursor_fg, params.cursor_bg)
                 };
+
+                let fg_color = self.ensure_min_contrast(fg_color, bg_color);
 
                 // interpolate between the background color
                 // and the the target color
@@ -565,6 +576,8 @@ impl crate::TermWindow {
                 } else {
                     (params.cursor_fg, params.cursor_bg)
                 };
+
+                let fg_color = self.ensure_min_contrast(fg_color, bg_color);
 
                 let color = params
                     .config
@@ -648,6 +661,8 @@ impl crate::TermWindow {
             // Normally, render the cell as configured (or if the window is unfocused)
             _ => (params.fg_color, params.bg_color, params.cursor_border_color),
         };
+
+        let fg_color = self.ensure_min_contrast(fg_color, bg_color);
 
         let blinking = params.cursor.is_some()
             && params.is_active_pane
