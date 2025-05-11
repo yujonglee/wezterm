@@ -229,6 +229,8 @@ As features stabilize some brief notes about them will accumulate here.
 * Pixel aliasing issue when using
   [window_content_alignment](config/lua/config/window_content_alignment.md) =
   `Center`. Thanks to @juster-0! #6929 #6928 #6823
+* Passing a `SpawnCommand` to the `SwitchToWorkspace` assignment would ignore
+  `set_environment_variables`. Thanks to @vincentbesanceney! #6850 #6845
 
 #### Updated
 * Bundled conpty.dll and OpenConsole.exe to build 1.22.250204002.nupkg
