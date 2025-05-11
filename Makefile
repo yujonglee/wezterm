@@ -1,4 +1,4 @@
-.PHONY: all fmt build check test
+.PHONY: all fmt build check test docs servedocs
 
 all: build
 
@@ -22,3 +22,8 @@ build:
 fmt:
 	cargo +nightly fmt
 
+docs:
+	ci/build-docs.sh
+
+servedocs:
+	ci/build-docs.sh serve
