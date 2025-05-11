@@ -64,6 +64,9 @@ As features stabilize some brief notes about them will accumulate here.
 * [InputSelector](config/lua/keyassignment/InputSelector.md) now allows
   setting `input_selector_label_bg` and `input_selector_label_fg` colors in
   the `colors` section of your configuration.  Thanks to @mgpinf! #6682
+* `wezterm imgcat --hold` now avoids local echo and accepts pressing `Escape`,
+  `CTRL-C` and `CTRL-D` as various ways of exiting hold mode. Thanks to
+  @mgpinf! #6801
 
 #### New
 * [wezterm.serde](config/lua/wezterm.serde/index.md) module for serialization
