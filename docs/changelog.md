@@ -129,6 +129,9 @@ As features stabilize some brief notes about them will accumulate here.
   option. Thanks to @jameshurst! #6584 ?2861
 * [text_min_contrast_ratio](config/lua/config/text_min_contrast_ratio.md) to more generally
   improve the contrast ratio for text in the terminal.
+* New `launcher_label_fg` and `launcher_label_bg` options for to customize
+  the [Launcher Menu](config/launch.md#the-launcher-menu). Thanks to @mgpinf!
+  #6796
 
 #### Fixed
 * Race condition when very quickly adjusting font scale, and other improvements
