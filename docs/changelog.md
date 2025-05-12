@@ -132,6 +132,9 @@ As features stabilize some brief notes about them will accumulate here.
 * New `launcher_label_fg` and `launcher_label_bg` options for to customize
   the [Launcher Menu](config/launch.md#the-launcher-menu). Thanks to @mgpinf!
   #6796
+* [TabInformation](config/lua/TabInformation.md) now exposes `is_last_active` as
+  a boolean property to indicate whether a tab was the prior active tab.
+  Thanks to @masriomarm! #6895
 
 #### Fixed
 * Race condition when very quickly adjusting font scale, and other improvements
