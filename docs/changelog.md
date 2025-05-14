@@ -240,6 +240,7 @@ As features stabilize some brief notes about them will accumulate here.
   `Center`. Thanks to @juster-0! #6929 #6928 #6823
 * Passing a `SpawnCommand` to the `SwitchToWorkspace` assignment would ignore
   `set_environment_variables`. Thanks to @vincentbesanceney! #6850 #6845
+* `libssh` based ssh sessions will now respect `ServerAliveInterval`. #4023
 
 #### Updated
 * Bundled conpty.dll and OpenConsole.exe to build 1.22.250204002.nupkg
