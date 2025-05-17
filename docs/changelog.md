@@ -244,7 +244,7 @@ As features stabilize some brief notes about them will accumulate here.
 
 #### Updated
 * Bundled conpty.dll and OpenConsole.exe to build 1.22.250204002.nupkg
-* Bundled harfbuzz to 10.4.0
+* Bundled harfbuzz to 11.2.1
 * Bundled libssh to 0.11.1
 * Bundled freetype to 2.13.3
 * Bundled Nerd Font Symbols font to v3.3.0
