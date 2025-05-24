@@ -475,7 +475,14 @@ impl Config {
     }
 
     fn resolve_local_host(&self, include_domain_name: bool) -> String {
-        let hostname = gethostname::gethostname().to_string_lossy().to_string();
+        let hostname = if cfg!(test) {
+            // Use a fixed and plausible name for the local hostname
+            // when running tests.  This isn't an ideal solution, but
+            // it is convenient and sufficient at the time of writing
+            "localhost".to_string()
+        } else {
+            gethostname::gethostname().to_string_lossy().to_string()
+        };
 
         if include_domain_name {
             hostname
@@ -917,19 +924,19 @@ Config {
 
         config.add_config_string(
             r#"
-        Host foo
+        Host target-host
             LocalCommand C=%C d=%d h=%h i=%i L=%L l=%L n=%n p=%p r=%r T=%T u=%u
             "#,
         );
 
-        let opts = config.for_host("foo");
+        let opts = config.for_host("target-host");
         snapshot!(
             opts,
             r#"
 {
-    "hostname": "foo",
+    "hostname": "target-host",
     "identityfile": "/home/me/.ssh/id_dsa /home/me/.ssh/id_ecdsa /home/me/.ssh/id_ed25519 /home/me/.ssh/id_rsa",
-    "localcommand": "C=69be18e71cb78246b4a5b6f25eee51a05908894d1ca556a9df61d854f57db753 d=/home/me h=foo i=1000 L=foo l=foo n=foo p=22 r=me T=NONE u=me",
+    "localcommand": "C=8de28522efb92214d9c442ea0402863e34d095a4006467ad9136a48e930870ea d=/home/me h=target-host i=1000 L=localhost l=localhost n=target-host p=22 r=me T=NONE u=me",
     "port": "22",
     "user": "me",
     "userknownhostsfile": "/home/me/.ssh/known_hosts /home/me/.ssh/known_hosts2",
