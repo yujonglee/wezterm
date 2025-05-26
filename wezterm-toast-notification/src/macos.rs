@@ -9,7 +9,7 @@ use objc2_user_notifications::{
     UNAuthorizationOptions, UNMutableNotificationContent, UNNotification, UNNotificationAction,
     UNNotificationActionOptions, UNNotificationCategory, UNNotificationCategoryOptions,
     UNNotificationPresentationOptions, UNNotificationRequest, UNNotificationResponse,
-    UNUserNotificationCenter, UNUserNotificationCenterDelegate,
+    UNUserNotificationCenter, UNUserNotificationCenterDelegate, UNNotificationDismissActionIdentifier,
 };
 use std::sync::{LazyLock, Once};
 
@@ -65,9 +65,11 @@ define_class!(
 
             log::debug!("did_receive_notification -> action={action:?} url={url:?}");
 
-            if let Some(url) = url {
-                if let Ok(url_str) = url.downcast::<NSString>() {
-                    wezterm_open_url::open_url(&url_str.to_string());
+            if &*action != unsafe { UNNotificationDismissActionIdentifier } {
+                if let Some(url) = url {
+                    if let Ok(url_str) = url.downcast::<NSString>() {
+                        wezterm_open_url::open_url(&url_str.to_string());
+                    }
                 }
             }
 
