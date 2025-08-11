@@ -8,8 +8,9 @@ use objc2_foundation::{ns_string, NSArray, NSDictionary, NSError, NSSet, NSStrin
 use objc2_user_notifications::{
     UNAuthorizationOptions, UNMutableNotificationContent, UNNotification, UNNotificationAction,
     UNNotificationActionOptions, UNNotificationCategory, UNNotificationCategoryOptions,
-    UNNotificationPresentationOptions, UNNotificationRequest, UNNotificationResponse,
-    UNUserNotificationCenter, UNUserNotificationCenterDelegate, UNNotificationDismissActionIdentifier,
+    UNNotificationDismissActionIdentifier, UNNotificationPresentationOptions,
+    UNNotificationRequest, UNNotificationResponse, UNUserNotificationCenter,
+    UNUserNotificationCenterDelegate,
 };
 use std::sync::{LazyLock, Once};
 
@@ -47,8 +48,7 @@ define_class!(
             completion_handler: &block2::Block<dyn Fn(UNNotificationPresentationOptions)>,
         ) {
             log::debug!("will_present");
-            let options =
-                UNNotificationPresentationOptions::List | UNNotificationPresentationOptions::Sound;
+            let options = UNNotificationPresentationOptions::Banner;
             completion_handler.call((options,));
         }
 
@@ -100,9 +100,7 @@ pub fn initialize() {
     static INIT: Once = Once::new();
     INIT.call_once(|| unsafe {
         CENTER.requestAuthorizationWithOptions_completionHandler(
-            UNAuthorizationOptions::Alert
-                | UNAuthorizationOptions::Provisional
-                | UNAuthorizationOptions::Sound,
+            UNAuthorizationOptions::Alert,
             &RcBlock::new(|ok: Bool, err| {
                 if ok.is_false() {
                     log::error!(
