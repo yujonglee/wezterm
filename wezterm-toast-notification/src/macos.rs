@@ -8,9 +8,9 @@ use objc2_foundation::{ns_string, NSArray, NSDictionary, NSError, NSSet, NSStrin
 use objc2_user_notifications::{
     UNAuthorizationOptions, UNMutableNotificationContent, UNNotification, UNNotificationAction,
     UNNotificationActionOptions, UNNotificationCategory, UNNotificationCategoryOptions,
-    UNNotificationDismissActionIdentifier, UNNotificationPresentationOptions,
-    UNNotificationRequest, UNNotificationResponse, UNUserNotificationCenter,
-    UNUserNotificationCenterDelegate,
+    UNNotificationDismissActionIdentifier, UNNotificationInterruptionLevel,
+    UNNotificationPresentationOptions, UNNotificationRequest, UNNotificationResponse,
+    UNUserNotificationCenter, UNUserNotificationCenterDelegate,
 };
 use std::sync::{LazyLock, Once};
 
@@ -153,6 +153,7 @@ pub fn show_notif(toast: ToastNotification) -> Result<(), Box<dyn std::error::Er
         let notif = UNMutableNotificationContent::new();
         notif.setTitle(&NSString::from_str(&toast.title));
         notif.setBody(&NSString::from_str(&toast.message));
+        notif.setInterruptionLevel(UNNotificationInterruptionLevel::TimeSensitive);
 
         if let Some(url) = &toast.url {
             let info =
