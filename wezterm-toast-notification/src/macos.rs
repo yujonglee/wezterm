@@ -48,7 +48,8 @@ define_class!(
             completion_handler: &block2::Block<dyn Fn(UNNotificationPresentationOptions)>,
         ) {
             log::debug!("will_present");
-            let options = UNNotificationPresentationOptions::Banner;
+            let options = UNNotificationPresentationOptions::Banner
+                | UNNotificationPresentationOptions::Sound;
             completion_handler.call((options,));
         }
 
@@ -100,7 +101,7 @@ pub fn initialize() {
     static INIT: Once = Once::new();
     INIT.call_once(|| unsafe {
         CENTER.requestAuthorizationWithOptions_completionHandler(
-            UNAuthorizationOptions::Alert,
+            UNAuthorizationOptions::Alert | UNAuthorizationOptions::Sound,
             &RcBlock::new(|ok: Bool, err| {
                 if ok.is_false() {
                     log::error!(
